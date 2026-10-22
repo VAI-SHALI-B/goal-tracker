@@ -5,7 +5,7 @@ from flask import Flask, jsonify, request, render_template
 app = Flask(__name__)
 
 # Version identifier for CI/CD tracking (v1, v2, v3)
-APP_VERSION = os.getenv("APP_VERSION", "v2")
+APP_VERSION = os.getenv("APP_VERSION", "v3")
 
 # In-memory store for goals
 goals_db = []
@@ -123,6 +123,46 @@ def update_goal(goal_id):
         "message": "Goal updated successfully",
         "version": APP_VERSION,
         "goal": goal
+    }), 200
+
+@app.route("/api/progress", methods=["GET"])
+def get_progress():
+    """v3 Feature: View - Show progress."""
+    total = len(goals_db)
+    if total == 0:
+        return jsonify({
+            "version": APP_VERSION,
+            "total_goals": 0,
+            "completed_goals": 0,
+            "in_progress_goals": 0,
+            "pending_goals": 0,
+            "overall_progress_pct": 0,
+            "category_summary": {}
+        }), 200
+
+    completed = sum(1 for g in goals_db if g.get("status") == "Completed")
+    in_progress = sum(1 for g in goals_db if g.get("status") == "In Progress")
+    pending = sum(1 for g in goals_db if g.get("status") == "Pending")
+    total_pct = sum(g.get("progress_pct", 0) for g in goals_db)
+    overall_pct = round(total_pct / total, 1)
+
+    categories = {}
+    for g in goals_db:
+        cat = g.get("category", "General")
+        if cat not in categories:
+            categories[cat] = {"total": 0, "completed": 0}
+        categories[cat]["total"] += 1
+        if g.get("status") == "Completed":
+            categories[cat]["completed"] += 1
+
+    return jsonify({
+        "version": APP_VERSION,
+        "total_goals": total,
+        "completed_goals": completed,
+        "in_progress_goals": in_progress,
+        "pending_goals": pending,
+        "overall_progress_pct": overall_pct,
+        "category_summary": categories
     }), 200
 
 if __name__ == "__main__":

@@ -88,7 +88,6 @@ def test_update_goal_status_and_progress(client):
     create_res = client.post("/api/goals", json={"title": "Setup Jenkins"})
     goal_id = create_res.get_json()["goal"]["id"]
 
-    # Update to In Progress with 50%
     client.put(f"/api/goals/{goal_id}", json={
         "status": "In Progress",
         "progress_pct": 50
@@ -99,7 +98,6 @@ def test_update_goal_status_and_progress(client):
     assert goal["status"] == "In Progress"
     assert goal["progress_pct"] == 50
 
-    # Complete goal
     client.put(f"/api/goals/{goal_id}", json={
         "status": "Completed"
     })
@@ -111,3 +109,39 @@ def test_update_goal_not_found(client):
     response = client.put("/api/goals/999", json={"title": "Non-existent"})
     assert response.status_code == 404
     assert "error" in response.get_json()
+
+# ==================== v3 Tests ====================
+
+def test_progress_endpoint_empty(client):
+    """Test v3 feature: /api/progress with no goals returns 0s."""
+    response = client.get("/api/progress")
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data["total_goals"] == 0
+    assert data["overall_progress_pct"] == 0
+
+def test_progress_endpoint_with_goals(client):
+    """Test v3 feature: /api/progress accurately computes metrics and percentages."""
+    # Goal 1: 100% completed
+    client.post("/api/goals", json={"title": "Goal 1", "category": "Academic"})
+    client.put("/api/goals/1", json={"status": "Completed", "progress_pct": 100})
+
+    # Goal 2: 50% in progress
+    client.post("/api/goals", json={"title": "Goal 2", "category": "Academic"})
+    client.put("/api/goals/2", json={"status": "In Progress", "progress_pct": 50})
+
+    # Goal 3: 0% pending
+    client.post("/api/goals", json={"title": "Goal 3", "category": "Personal"})
+
+    response = client.get("/api/progress")
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data["total_goals"] == 3
+    assert data["completed_goals"] == 1
+    assert data["in_progress_goals"] == 1
+    assert data["pending_goals"] == 1
+    # Average: (100 + 50 + 0) / 3 = 50.0%
+    assert data["overall_progress_pct"] == 50.0
+    assert "Academic" in data["category_summary"]
+    assert data["category_summary"]["Academic"]["total"] == 2
+    assert data["category_summary"]["Academic"]["completed"] == 1

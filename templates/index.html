@@ -94,6 +94,55 @@
             align-items: center;
             gap: 0.5rem;
         }
+        /* v3 Progress Dashboard Styles */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .stat-card {
+            background: #111c30;
+            border: 1px solid var(--card-border);
+            border-radius: 10px;
+            padding: 1rem;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #f8fafc;
+            margin-top: 0.25rem;
+        }
+        .stat-label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .progress-bar-container {
+            background-color: #0b1120;
+            border-radius: 9999px;
+            height: 14px;
+            width: 100%;
+            overflow: hidden;
+            margin: 0.75rem 0 0.5rem 0;
+            border: 1px solid var(--card-border);
+        }
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #38bdf8 0%, #10b981 100%);
+            border-radius: 9999px;
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+        .progress-text {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
         .form-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -238,7 +287,6 @@
             display: none;
             z-index: 1000;
         }
-        /* Modal for v2 Edit Feature */
         .modal-overlay {
             position: fixed;
             top: 0;
@@ -291,10 +339,43 @@
                 <p>Agile DevOps Lab &bull; Student Roll: <strong>24MIS0378</strong></p>
             </div>
             <div class="badge-group">
-                <span class="badge badge-version" id="versionBadge">Version: {{ version }} (Add & Update)</span>
+                <span class="badge badge-version" id="versionBadge">Version: {{ version }} (Add, Update, & Show Progress)</span>
                 <span class="badge badge-health" id="healthBadge">&bull; Healthy</span>
             </div>
         </header>
+
+        <!-- v3 Feature: View - Show Progress Dashboard -->
+        <div class="card">
+            <h2>📈 Progress Dashboard (v3 Feature)</h2>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">Total Goals</div>
+                    <div class="stat-value" id="statTotal">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">In Progress</div>
+                    <div class="stat-value" style="color: #38bdf8;" id="statInProgress">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Completed</div>
+                    <div class="stat-value" style="color: #34d399;" id="statCompleted">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Pending</div>
+                    <div class="stat-value" style="color: #fbbf24;" id="statPending">0</div>
+                </div>
+            </div>
+
+            <div>
+                <div class="progress-text">
+                    <span>Overall Completion Rate</span>
+                    <strong id="statOverallPct">0%</strong>
+                </div>
+                <div class="progress-bar-container">
+                    <div class="progress-bar-fill" id="statProgressBar"></div>
+                </div>
+            </div>
+        </div>
 
         <!-- v1 Feature: Add - Create Goal -->
         <div class="card">
@@ -328,7 +409,7 @@
             </form>
         </div>
 
-        <!-- Goals Display with v2 Update Feature -->
+        <!-- Goals Display with v2 Update & v3 Progress Percentage -->
         <div class="card">
             <h2>📋 Active Goals (<span id="goalCount">0</span>)</h2>
             <div id="goalsList" class="goals-container">
@@ -400,6 +481,11 @@
             setTimeout(() => { toast.style.display = "none"; }, 3000);
         }
 
+        async function fetchAll() {
+            await fetchGoals();
+            await fetchProgress();
+        }
+
         async function fetchGoals() {
             try {
                 const res = await fetch("/api/goals");
@@ -408,6 +494,23 @@
                 renderGoals(currentGoals);
             } catch (err) {
                 console.error("Error fetching goals:", err);
+            }
+        }
+
+        async function fetchProgress() {
+            try {
+                const res = await fetch("/api/progress");
+                const data = await res.json();
+                document.getElementById("statTotal").textContent = data.total_goals;
+                document.getElementById("statInProgress").textContent = data.in_progress_goals;
+                document.getElementById("statCompleted").textContent = data.completed_goals;
+                document.getElementById("statPending").textContent = data.pending_goals;
+
+                const pct = data.overall_progress_pct || 0;
+                document.getElementById("statOverallPct").textContent = `${pct}%`;
+                document.getElementById("statProgressBar").style.width = `${pct}%`;
+            } catch (err) {
+                console.error("Error fetching progress stats:", err);
             }
         }
 
@@ -452,7 +555,6 @@
             });
         }
 
-        // Open v2 Edit Modal
         function openEditModal(goalId) {
             const goal = currentGoals.find(g => g.id === goalId);
             if (!goal) return;
@@ -472,7 +574,6 @@
             document.getElementById("editModal").style.display = "none";
         }
 
-        // v2 Update Form submission
         document.getElementById("editForm").addEventListener("submit", async (e) => {
             e.preventDefault();
             const id = document.getElementById("editGoalId").value;
@@ -493,7 +594,7 @@
                 if (res.ok) {
                     showToast("Goal updated successfully!");
                     closeEditModal();
-                    fetchGoals();
+                    fetchAll();
                 } else {
                     const err = await res.json();
                     showToast(err.error || "Failed to update goal", false);
@@ -503,7 +604,6 @@
             }
         });
 
-        // v1 Add Goal Form submission
         document.getElementById("goalForm").addEventListener("submit", async (e) => {
             e.preventDefault();
             const title = document.getElementById("goalTitle").value.trim();
@@ -523,7 +623,7 @@
                 if (res.ok) {
                     showToast("Goal created successfully!");
                     document.getElementById("goalForm").reset();
-                    fetchGoals();
+                    fetchAll();
                 } else {
                     const err = await res.json();
                     showToast(err.error || "Failed to create goal", false);
@@ -533,7 +633,7 @@
             }
         });
 
-        fetchGoals();
+        fetchAll();
     </script>
 </body>
 </html>
