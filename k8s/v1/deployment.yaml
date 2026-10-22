@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: goal-tracker-v1
+  labels:
+    app: goal-tracker
+    version: v1
+    student: "24MIS0378"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: goal-tracker
+      version: v1
+  template:
+    metadata:
+      labels:
+        app: goal-tracker
+        version: v1
+    spec:
+      containers:
+      - name: goal-tracker
+        image: goal-tracker:v1
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 5000
+        env:
+        - name: APP_VERSION
+          value: "v1"
+        - name: PORT
+          value: "5000"
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 10
+          periodSeconds: 10
