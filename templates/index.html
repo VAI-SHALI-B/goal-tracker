@@ -150,6 +150,20 @@
         button.btn-primary:hover {
             opacity: 0.9;
         }
+        button.btn-edit {
+            background: rgba(6, 182, 212, 0.15);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            color: #38bdf8;
+            padding: 0.4rem 0.8rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        button.btn-edit:hover {
+            background: rgba(6, 182, 212, 0.25);
+        }
         .goals-container {
             display: grid;
             gap: 1rem;
@@ -193,6 +207,18 @@
             color: #94a3b8;
             border: 1px solid #334155;
         }
+        .status-completed {
+            color: #34d399;
+            border-color: rgba(52, 211, 153, 0.3);
+        }
+        .status-inprogress {
+            color: #38bdf8;
+            border-color: rgba(56, 189, 248, 0.3);
+        }
+        .status-pending {
+            color: #fbbf24;
+            border-color: rgba(251, 191, 36, 0.3);
+        }
         .empty-state {
             text-align: center;
             padding: 3rem 1rem;
@@ -212,6 +238,49 @@
             display: none;
             z-index: 1000;
         }
+        /* Modal for v2 Edit Feature */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 999;
+            padding: 1rem;
+        }
+        .modal {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            max-width: 500px;
+            width: 100%;
+            padding: 1.5rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        .modal-actions {
+            display: flex;
+            gap: 0.75rem;
+            margin-top: 1.5rem;
+        }
+        .btn-cancel {
+            background: #334155;
+            color: white;
+            padding: 0.65rem 1.25rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 50%;
+        }
     </style>
 </head>
 <body>
@@ -222,14 +291,14 @@
                 <p>Agile DevOps Lab &bull; Student Roll: <strong>24MIS0378</strong></p>
             </div>
             <div class="badge-group">
-                <span class="badge badge-version" id="versionBadge">Version: {{ version }} (Add Goal)</span>
+                <span class="badge badge-version" id="versionBadge">Version: {{ version }} (Add & Update)</span>
                 <span class="badge badge-health" id="healthBadge">&bull; Healthy</span>
             </div>
         </header>
 
         <!-- v1 Feature: Add - Create Goal -->
         <div class="card">
-            <h2>➕ Add New Goal (v1 Feature)</h2>
+            <h2>➕ Add New Goal</h2>
             <form id="goalForm">
                 <div class="form-grid">
                     <div class="form-group full-width">
@@ -259,7 +328,7 @@
             </form>
         </div>
 
-        <!-- Goals Display -->
+        <!-- Goals Display with v2 Update Feature -->
         <div class="card">
             <h2>📋 Active Goals (<span id="goalCount">0</span>)</h2>
             <div id="goalsList" class="goals-container">
@@ -268,9 +337,61 @@
         </div>
     </div>
 
+    <!-- v2 Modal: Modify / Update Goal -->
+    <div id="editModal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>✏️ Modify Goal (v2 Feature)</h3>
+            </div>
+            <form id="editForm">
+                <input type="hidden" id="editGoalId">
+                <div class="form-group">
+                    <label for="editTitle">Title *</label>
+                    <input type="text" id="editTitle" required>
+                </div>
+                <div class="form-group">
+                    <label for="editDescription">Description</label>
+                    <textarea id="editDescription"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="editCategory">Category</label>
+                    <select id="editCategory">
+                        <option value="Academic">Academic</option>
+                        <option value="Career">Career & Skill</option>
+                        <option value="Health">Health & Fitness</option>
+                        <option value="Personal">Personal Development</option>
+                        <option value="Finance">Finance</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="editTargetDate">Target Date</label>
+                    <input type="date" id="editTargetDate">
+                </div>
+                <div class="form-group">
+                    <label for="editStatus">Status</label>
+                    <select id="editStatus">
+                        <option value="Pending">Pending</option>
+                        <option value="In Progress">In Progress</option>
+                        <option value="Completed">Completed</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="editProgress">Progress Percentage (0 - 100%)</label>
+                    <input type="number" id="editProgress" min="0" max="100">
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn-cancel" onclick="closeEditModal()">Cancel</button>
+                    <button type="submit" class="btn-primary" style="width: 50%;">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <div id="toast" class="notification"></div>
 
     <script>
+        let currentGoals = [];
+
         function showToast(msg, isSuccess = true) {
             const toast = document.getElementById("toast");
             toast.textContent = msg;
@@ -283,7 +404,8 @@
             try {
                 const res = await fetch("/api/goals");
                 const data = await res.json();
-                renderGoals(data.goals);
+                currentGoals = data.goals;
+                renderGoals(currentGoals);
             } catch (err) {
                 console.error("Error fetching goals:", err);
             }
@@ -298,7 +420,12 @@
                 return;
             }
 
-            list.innerHTML = goals.map(g => `
+            list.innerHTML = goals.map(g => {
+                let statusClass = "status-pending";
+                if (g.status === "Completed") statusClass = "status-completed";
+                else if (g.status === "In Progress") statusClass = "status-inprogress";
+
+                return `
                 <div class="goal-item" id="goal-${g.id}">
                     <div class="goal-info">
                         <h3>${escapeHtml(g.title)}</h3>
@@ -306,12 +433,16 @@
                         <div class="meta-tags">
                             <span class="meta-pill">🏷️ ${escapeHtml(g.category)}</span>
                             <span class="meta-pill">📅 Due: ${escapeHtml(g.target_date)}</span>
-                            <span class="meta-pill">⚡ Status: ${escapeHtml(g.status)}</span>
+                            <span class="meta-pill ${statusClass}">⚡ ${escapeHtml(g.status)} (${g.progress_pct || 0}%)</span>
                             <span class="meta-pill">🕒 ${escapeHtml(g.created_at)}</span>
                         </div>
                     </div>
+                    <div>
+                        <button class="btn-edit" onclick="openEditModal(${g.id})">✏️ Modify</button>
+                    </div>
                 </div>
-            `).reverse().join('');
+                `;
+            }).reverse().join('');
         }
 
         function escapeHtml(str) {
@@ -321,6 +452,58 @@
             });
         }
 
+        // Open v2 Edit Modal
+        function openEditModal(goalId) {
+            const goal = currentGoals.find(g => g.id === goalId);
+            if (!goal) return;
+
+            document.getElementById("editGoalId").value = goal.id;
+            document.getElementById("editTitle").value = goal.title;
+            document.getElementById("editDescription").value = goal.description || "";
+            document.getElementById("editCategory").value = goal.category;
+            document.getElementById("editTargetDate").value = goal.target_date !== "Not Specified" ? goal.target_date : "";
+            document.getElementById("editStatus").value = goal.status;
+            document.getElementById("editProgress").value = goal.progress_pct || 0;
+
+            document.getElementById("editModal").style.display = "flex";
+        }
+
+        function closeEditModal() {
+            document.getElementById("editModal").style.display = "none";
+        }
+
+        // v2 Update Form submission
+        document.getElementById("editForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const id = document.getElementById("editGoalId").value;
+            const title = document.getElementById("editTitle").value.trim();
+            const description = document.getElementById("editDescription").value.trim();
+            const category = document.getElementById("editCategory").value;
+            const target_date = document.getElementById("editTargetDate").value;
+            const status = document.getElementById("editStatus").value;
+            const progress_pct = document.getElementById("editProgress").value;
+
+            try {
+                const res = await fetch(`/api/goals/${id}`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ title, description, category, target_date, status, progress_pct })
+                });
+
+                if (res.ok) {
+                    showToast("Goal updated successfully!");
+                    closeEditModal();
+                    fetchGoals();
+                } else {
+                    const err = await res.json();
+                    showToast(err.error || "Failed to update goal", false);
+                }
+            } catch (err) {
+                showToast("Network error updating goal", false);
+            }
+        });
+
+        // v1 Add Goal Form submission
         document.getElementById("goalForm").addEventListener("submit", async (e) => {
             e.preventDefault();
             const title = document.getElementById("goalTitle").value.trim();
@@ -350,7 +533,6 @@
             }
         });
 
-        // Initial load
         fetchGoals();
     </script>
 </body>

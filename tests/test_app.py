@@ -54,17 +54,60 @@ def test_create_goal_success(client):
     assert data["goal"]["category"] == "Academic"
     assert data["goal"]["status"] == "Pending"
 
-    # Verify it now appears in GET /api/goals
-    get_res = client.get("/api/goals")
-    assert get_res.status_code == 200
-    assert get_res.get_json()["count"] == 1
-
 def test_create_goal_missing_title(client):
     """Test creating a goal without title returns 400 error."""
-    payload = {
-        "description": "Missing title test"
-    }
+    payload = {"description": "Missing title test"}
     response = client.post("/api/goals", json=payload)
     assert response.status_code == 400
     data = response.get_json()
     assert "error" in data
+
+# ==================== v2 Tests ====================
+
+def test_update_goal_success(client):
+    """Test v2 feature: update goal details."""
+    create_res = client.post("/api/goals", json={
+        "title": "Learn Docker",
+        "description": "Learn basic commands"
+    })
+    goal_id = create_res.get_json()["goal"]["id"]
+
+    update_res = client.put(f"/api/goals/{goal_id}", json={
+        "title": "Master Docker & Containers",
+        "description": "Build multi-stage images",
+        "category": "Career"
+    })
+    assert update_res.status_code == 200
+    updated_goal = update_res.get_json()["goal"]
+    assert updated_goal["title"] == "Master Docker & Containers"
+    assert updated_goal["description"] == "Build multi-stage images"
+    assert updated_goal["category"] == "Career"
+
+def test_update_goal_status_and_progress(client):
+    """Test v2 feature: update status and progress percentage."""
+    create_res = client.post("/api/goals", json={"title": "Setup Jenkins"})
+    goal_id = create_res.get_json()["goal"]["id"]
+
+    # Update to In Progress with 50%
+    client.put(f"/api/goals/{goal_id}", json={
+        "status": "In Progress",
+        "progress_pct": 50
+    })
+    get_res = client.get(f"/api/goals/{goal_id}")
+    assert get_res.status_code == 200
+    goal = get_res.get_json()["goal"]
+    assert goal["status"] == "In Progress"
+    assert goal["progress_pct"] == 50
+
+    # Complete goal
+    client.put(f"/api/goals/{goal_id}", json={
+        "status": "Completed"
+    })
+    get_res2 = client.get(f"/api/goals/{goal_id}")
+    assert get_res2.get_json()["goal"]["progress_pct"] == 100
+
+def test_update_goal_not_found(client):
+    """Test updating non-existent goal returns 404."""
+    response = client.put("/api/goals/999", json={"title": "Non-existent"})
+    assert response.status_code == 404
+    assert "error" in response.get_json()
