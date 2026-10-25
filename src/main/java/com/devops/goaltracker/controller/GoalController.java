@@ -1,5 +1,6 @@
 package com.devops.goaltracker.controller;
 
+import com.devops.goaltracker.dto.ProgressReport;
 import com.devops.goaltracker.model.Goal;
 import com.devops.goaltracker.service.GoalService;
 import jakarta.validation.Valid;
@@ -20,7 +21,7 @@ public class GoalController {
 
     private final GoalService goalService;
 
-    @Value("${app.version:v2}")
+    @Value("${app.version:v3}")
     private String appVersion;
 
     public GoalController(GoalService goalService) {
@@ -93,5 +94,14 @@ public class GoalController {
             err.put("error", e.getMessage());
             return ResponseEntity.badRequest().body(err);
         }
+    }
+
+    /**
+     * v3 Feature: View - Show goal progress analytics
+     */
+    @GetMapping("/progress")
+    public ResponseEntity<ProgressReport> getProgress() {
+        ProgressReport report = goalService.getProgressReport(appVersion);
+        return ResponseEntity.ok(report);
     }
 }

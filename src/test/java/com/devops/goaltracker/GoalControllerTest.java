@@ -42,7 +42,7 @@ public class GoalControllerTest {
                 .andExpect(jsonPath("$.status", is("healthy")))
                 .andExpect(jsonPath("$.student_id", is("24MIS0378")))
                 .andExpect(jsonPath("$.app", is("Goal Tracker")))
-                .andExpect(jsonPath("$.version", is("v2")));
+                .andExpect(jsonPath("$.version", is("v3")));
     }
 
     @Test
@@ -102,7 +102,7 @@ public class GoalControllerTest {
                         .content(objectMapper.writeValueAsString(updateData)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.message", is("Goal updated successfully")))
-                .andExpect(jsonPath("$.version", is("v2")))
+                .andExpect(jsonPath("$.version", is("v3")))
                 .andExpect(jsonPath("$.goal.id", is(saved.getId().intValue())))
                 .andExpect(jsonPath("$.goal.title", is("Updated Goal Title")))
                 .andExpect(jsonPath("$.goal.description", is("Updated description with more details")))
@@ -136,5 +136,44 @@ public class GoalControllerTest {
                         .content(objectMapper.writeValueAsString(updateData)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error", containsString("cannot be blank")));
+    }
+
+    // v3 Tests: View Progress Endpoint
+    @Test
+    void testGetProgressEndpointEmpty() throws Exception {
+        mockMvc.perform(get("/api/progress"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.version", is("v3")))
+                .andExpect(jsonPath("$.total_goals", is(0)))
+                .andExpect(jsonPath("$.completed_goals", is(0)))
+                .andExpect(jsonPath("$.in_progress_goals", is(0)))
+                .andExpect(jsonPath("$.pending_goals", is(0)))
+                .andExpect(jsonPath("$.overall_progress_pct", is(0.0)));
+    }
+
+    @Test
+    void testGetProgressEndpointWithGoals() throws Exception {
+        Goal g1 = new Goal("Goal 1", "Desc 1", "Academic", "2026-11-01");
+        g1.setStatus("Completed");
+        g1.setProgressPct(100);
+        goalRepository.save(g1);
+
+        Goal g2 = new Goal("Goal 2", "Desc 2", "Career", "2026-11-15");
+        g2.setStatus("In Progress");
+        g2.setProgressPct(60);
+        goalRepository.save(g2);
+
+        mockMvc.perform(get("/api/progress"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.version", is("v3")))
+                .andExpect(jsonPath("$.total_goals", is(2)))
+                .andExpect(jsonPath("$.completed_goals", is(1)))
+                .andExpect(jsonPath("$.in_progress_goals", is(1)))
+                .andExpect(jsonPath("$.pending_goals", is(0)))
+                .andExpect(jsonPath("$.overall_progress_pct", is(80.0)))
+                .andExpect(jsonPath("$.category_summary.Academic.total", is(1)))
+                .andExpect(jsonPath("$.category_summary.Academic.completed", is(1)))
+                .andExpect(jsonPath("$.category_summary.Career.total", is(1)))
+                .andExpect(jsonPath("$.category_summary.Career.completed", is(0)));
     }
 }

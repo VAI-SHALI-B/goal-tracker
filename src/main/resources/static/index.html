@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Goal Tracker - v2 | 24MIS0378</title>
+    <title>Goal Tracker - v3 | 24MIS0378</title>
     <style>
         :root {
             --primary: #4f46e5;
@@ -94,6 +94,67 @@
             align-items: center;
             gap: 0.5rem;
         }
+
+        /* v3 Progress Dashboard Styles */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            margin-bottom: 1.25rem;
+        }
+        @media (max-width: 640px) {
+            .metrics-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        .metric-card {
+            background-color: #131d31;
+            border: 1px solid var(--card-border);
+            border-radius: 10px;
+            padding: 1rem;
+            text-align: center;
+        }
+        .metric-title {
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.35rem;
+        }
+        .metric-value {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #f8fafc;
+        }
+        .metric-total { color: #38bdf8; }
+        .metric-completed { color: #34d399; }
+        .metric-inprogress { color: #818cf8; }
+        .metric-pending { color: #fbbf24; }
+
+        .progress-bar-container {
+            background-color: #0b1120;
+            border-radius: 9999px;
+            height: 14px;
+            width: 100%;
+            overflow: hidden;
+            margin: 0.75rem 0 0.5rem 0;
+            border: 1px solid var(--card-border);
+        }
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #38bdf8 0%, #10b981 100%);
+            border-radius: 9999px;
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+        .progress-bar-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
         .form-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -295,10 +356,40 @@
                 <p>Spring Boot 3 &bull; Java 21 &bull; Student Roll: <strong>24MIS0378</strong></p>
             </div>
             <div class="badge-group">
-                <span class="badge badge-version" id="versionBadge">Version: v2 (Add & Modify Goal)</span>
+                <span class="badge badge-version" id="versionBadge">Version: v3 (Progress Dashboard)</span>
                 <span class="badge badge-health" id="healthBadge">&bull; System Healthy</span>
             </div>
         </header>
+
+        <!-- v3 Feature: View - Goal Progress Dashboard -->
+        <div class="card">
+            <h2>📊 Goal Progress Dashboard (v3 Feature)</h2>
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-title">Total Goals</div>
+                    <div class="metric-value metric-total" id="statTotal">0</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-title">Completed</div>
+                    <div class="metric-value metric-completed" id="statCompleted">0</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-title">In Progress</div>
+                    <div class="metric-value metric-inprogress" id="statInProgress">0</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-title">Pending</div>
+                    <div class="metric-value metric-pending" id="statPending">0</div>
+                </div>
+            </div>
+            <div class="progress-bar-label">
+                <span>Overall Completion Rate</span>
+                <strong id="statOverallPct">0%</strong>
+            </div>
+            <div class="progress-bar-container">
+                <div class="progress-bar-fill" id="statProgressBar"></div>
+            </div>
+        </div>
 
         <!-- v1 Feature: Add - Create Goal -->
         <div class="card">
@@ -410,8 +501,29 @@
                 const data = await res.json();
                 currentGoals = data.goals || [];
                 renderGoals(currentGoals);
+                fetchProgress();
             } catch (err) {
                 console.error("Error fetching goals:", err);
+            }
+        }
+
+        // v3 Feature: Fetch and update progress dashboard metrics
+        async function fetchProgress() {
+            try {
+                const res = await fetch("/api/progress");
+                if (res.ok) {
+                    const data = await res.json();
+                    document.getElementById("statTotal").textContent = data.total_goals || 0;
+                    document.getElementById("statCompleted").textContent = data.completed_goals || 0;
+                    document.getElementById("statInProgress").textContent = data.in_progress_goals || 0;
+                    document.getElementById("statPending").textContent = data.pending_goals || 0;
+
+                    const pct = data.overall_progress_pct !== undefined ? data.overall_progress_pct : 0;
+                    document.getElementById("statOverallPct").textContent = `${pct}%`;
+                    document.getElementById("statProgressBar").style.width = `${Math.min(100, Math.max(0, pct))}%`;
+                }
+            } catch (err) {
+                console.error("Error fetching progress analytics:", err);
             }
         }
 

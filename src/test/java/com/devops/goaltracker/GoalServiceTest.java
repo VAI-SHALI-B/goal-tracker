@@ -1,5 +1,6 @@
 package com.devops.goaltracker;
 
+import com.devops.goaltracker.dto.ProgressReport;
 import com.devops.goaltracker.model.Goal;
 import com.devops.goaltracker.repository.GoalRepository;
 import com.devops.goaltracker.service.GoalService;
@@ -108,5 +109,60 @@ public class GoalServiceTest {
         assertEquals("2026-11-20", updated.getTargetDate());
         assertEquals("Completed", updated.getStatus());
         assertEquals(100, updated.getProgressPct());
+    }
+
+    // v3 Tests: View Goal Progress Analytics
+    @Test
+    void testProgressReportWhenEmpty() {
+        ProgressReport report = goalService.getProgressReport("v3");
+        assertNotNull(report);
+        assertEquals("v3", report.getVersion());
+        assertEquals(0, report.getTotalGoals());
+        assertEquals(0, report.getCompletedGoals());
+        assertEquals(0, report.getInProgressGoals());
+        assertEquals(0, report.getPendingGoals());
+        assertEquals(0.0, report.getOverallProgressPct());
+        assertTrue(report.getCategorySummary().isEmpty());
+    }
+
+    @Test
+    void testProgressReportWithMultipleGoals() {
+        // Goal 1: Completed (100%) - Academic
+        Goal g1 = new Goal("Complete Docker Lab", "Containerize app", "Academic", "2026-11-01");
+        g1.setStatus("Completed");
+        g1.setProgressPct(100);
+        goalRepository.save(g1);
+
+        // Goal 2: In Progress (50%) - Career
+        Goal g2 = new Goal("Learn Kubernetes", "Deploy to kind cluster", "Career", "2026-11-10");
+        g2.setStatus("In Progress");
+        g2.setProgressPct(50);
+        goalRepository.save(g2);
+
+        // Goal 3: Pending (0%) - Academic
+        Goal g3 = new Goal("Prepare Presentation", "Slides for final review", "Academic", "2026-11-25");
+        g3.setStatus("Pending");
+        g3.setProgressPct(0);
+        goalRepository.save(g3);
+
+        ProgressReport report = goalService.getProgressReport("v3");
+        assertNotNull(report);
+        assertEquals("v3", report.getVersion());
+        assertEquals(3, report.getTotalGoals());
+        assertEquals(1, report.getCompletedGoals());
+        assertEquals(1, report.getInProgressGoals());
+        assertEquals(1, report.getPendingGoals());
+
+        // (100 + 50 + 0) / 3 = 50.0%
+        assertEquals(50.0, report.getOverallProgressPct());
+
+        // Category breakdown: Academic total 2, completed 1; Career total 1, completed 0
+        assertTrue(report.getCategorySummary().containsKey("Academic"));
+        assertEquals(2, report.getCategorySummary().get("Academic").getTotal());
+        assertEquals(1, report.getCategorySummary().get("Academic").getCompleted());
+
+        assertTrue(report.getCategorySummary().containsKey("Career"));
+        assertEquals(1, report.getCategorySummary().get("Career").getTotal());
+        assertEquals(0, report.getCategorySummary().get("Career").getCompleted());
     }
 }

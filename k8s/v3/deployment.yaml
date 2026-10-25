@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: goal-tracker-v3
+  name: app-v3-deployment
   labels:
     app: goal-tracker
     version: v3
@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
       - name: goal-tracker
-        image: goal-tracker:v3
+        image: vaishalibalaji/goal-tracker:v3
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 5000
@@ -29,15 +29,17 @@ spec:
           value: "v3"
         - name: PORT
           value: "5000"
+        - name: SPRING_H2_CONSOLE_SETTINGS_WEB_ALLOW_OTHERS
+          value: "true"
         readinessProbe:
           httpGet:
             path: /health
             port: 5000
-          initialDelaySeconds: 5
+          initialDelaySeconds: 15
           periodSeconds: 5
         livenessProbe:
           httpGet:
             path: /health
             port: 5000
-          initialDelaySeconds: 10
+          initialDelaySeconds: 20
           periodSeconds: 10
