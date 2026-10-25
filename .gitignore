@@ -1,6 +1,22 @@
-.venv/
-__pycache__/
-.pytest_cache/
-*.pyc
-.env
+target/
+!.mvn/wrapper/maven-wrapper.jar
+*.class
 *.log
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Eclipse
+.project
+.classpath
+.settings/
+
+# VS Code
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db

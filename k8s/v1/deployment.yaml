@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
       - name: goal-tracker
-        image: goal-tracker:v1
+        image: goal-tracker:v1.0.1
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 5000
@@ -29,15 +29,17 @@ spec:
           value: "v1"
         - name: PORT
           value: "5000"
+        - name: SPRING_H2_CONSOLE_SETTINGS_WEB_ALLOW_OTHERS
+          value: "true"
         readinessProbe:
           httpGet:
             path: /health
             port: 5000
-          initialDelaySeconds: 5
+          initialDelaySeconds: 15
           periodSeconds: 5
         livenessProbe:
           httpGet:
             path: /health
             port: 5000
-          initialDelaySeconds: 10
+          initialDelaySeconds: 20
           periodSeconds: 10

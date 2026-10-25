@@ -7,11 +7,11 @@ metadata:
     version: v1
     student: "24MIS0378"
 spec:
-  type: NodePort
+  type: LoadBalancer
   selector:
     app: goal-tracker
     version: v1
   ports:
-  - port: 80
+  - port: 30081
     targetPort: 5000
     nodePort: 30081

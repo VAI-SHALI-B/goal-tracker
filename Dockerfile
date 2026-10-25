@@ -1,19 +1,11 @@
-FROM python:3.13-slim
-
+FROM eclipse-temurin:21-jre-jammy
 WORKDIR /app
 
-# Prevent Python from writing pyc files and buffering stdout/stderr
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
+ARG JAR_FILE=target/goal-tracker.jar
+COPY ${JAR_FILE} app.jar
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-COPY . .
-
+ENV PORT=5000
+ENV APP_VERSION=v1
 EXPOSE 5000
 
-ENV APP_VERSION=v1
-ENV PORT=5000
-
-CMD ["python", "app.py"]
+ENTRYPOINT ["java", "-jar", "app.jar"]
