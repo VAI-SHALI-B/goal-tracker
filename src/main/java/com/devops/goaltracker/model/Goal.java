@@ -32,21 +32,18 @@ public class Goal {
     private LocalDateTime updatedAt;
 
     public Goal() {
-        this.status = "Pending";
-        this.progressPct = 0;
-        this.category = "General";
-        this.createdAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
+        // Default constructor for JPA and JSON deserialization: leave fields null so partial updates work
     }
 
     public Goal(String title, String description, String category, String targetDate) {
-        this();
         this.title = title;
         this.description = description;
-        if (category != null && !category.isBlank()) {
-            this.category = category;
-        }
-        this.targetDate = targetDate != null && !targetDate.isBlank() ? targetDate : "Not Specified";
+        this.category = (category != null && !category.isBlank()) ? category : "General";
+        this.targetDate = (targetDate != null && !targetDate.isBlank()) ? targetDate : "Not Specified";
+        this.status = "Pending";
+        this.progressPct = 0;
+        this.createdAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
     }
 
     @PrePersist
@@ -57,7 +54,7 @@ public class Goal {
         if (this.updatedAt == null) {
             this.updatedAt = LocalDateTime.now();
         }
-        if (this.status == null) {
+        if (this.status == null || this.status.isBlank()) {
             this.status = "Pending";
         }
         if (this.progressPct == null) {
@@ -73,6 +70,43 @@ public class Goal {
 
     @PreUpdate
     protected void onUpdate() {
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    /**
+     * v2 Feature Helper: Updates fields from another Goal instance with business logic
+     */
+    public void updateFrom(Goal other) {
+        if (other.getTitle() != null) {
+            if (other.getTitle().trim().isEmpty()) {
+                throw new IllegalArgumentException("Goal title cannot be blank");
+            }
+            this.title = other.getTitle().trim();
+        }
+        if (other.getDescription() != null) {
+            this.description = other.getDescription().trim();
+        }
+        if (other.getCategory() != null && !other.getCategory().trim().isEmpty()) {
+            this.category = other.getCategory().trim();
+        }
+        if (other.getTargetDate() != null && !other.getTargetDate().trim().isEmpty()) {
+            this.targetDate = other.getTargetDate().trim();
+        }
+        if (other.getStatus() != null && !other.getStatus().trim().isEmpty()) {
+            this.status = other.getStatus().trim();
+            if ("Completed".equalsIgnoreCase(this.status)) {
+                this.progressPct = 100;
+            }
+        }
+        if (other.getProgressPct() != null) {
+            int pct = Math.max(0, Math.min(100, other.getProgressPct()));
+            this.progressPct = pct;
+            if (pct == 100) {
+                this.status = "Completed";
+            } else if (pct > 0 && "Pending".equalsIgnoreCase(this.status)) {
+                this.status = "In Progress";
+            }
+        }
         this.updatedAt = LocalDateTime.now();
     }
 

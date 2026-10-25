@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 
 @RestController
 @RequestMapping("/api/goals")
@@ -19,7 +20,7 @@ public class GoalController {
 
     private final GoalService goalService;
 
-    @Value("${app.version:v1}")
+    @Value("${app.version:v2}")
     private String appVersion;
 
     public GoalController(GoalService goalService) {
@@ -64,6 +65,29 @@ public class GoalController {
             response.put("version", appVersion);
             response.put("goal", saved);
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        } catch (IllegalArgumentException e) {
+            Map<String, String> err = new HashMap<>();
+            err.put("error", e.getMessage());
+            return ResponseEntity.badRequest().body(err);
+        }
+    }
+
+    /**
+     * v2 Feature: Update - Modify goal
+     */
+    @PutMapping("/{id}")
+    public ResponseEntity<?> updateGoal(@PathVariable Long id, @RequestBody Goal updateRequest) {
+        try {
+            Goal updated = goalService.updateGoal(id, updateRequest);
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "Goal updated successfully");
+            response.put("version", appVersion);
+            response.put("goal", updated);
+            return ResponseEntity.ok(response);
+        } catch (NoSuchElementException e) {
+            Map<String, String> err = new HashMap<>();
+            err.put("error", e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(err);
         } catch (IllegalArgumentException e) {
             Map<String, String> err = new HashMap<>();
             err.put("error", e.getMessage());

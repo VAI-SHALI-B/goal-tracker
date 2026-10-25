@@ -7,11 +7,12 @@ metadata:
     version: v2
     student: "24MIS0378"
 spec:
-  type: NodePort
+  type: LoadBalancer
+  sessionAffinity: ClientIP
   selector:
     app: goal-tracker
     version: v2
   ports:
-  - port: 80
+  - port: 30082
     targetPort: 5000
     nodePort: 30082

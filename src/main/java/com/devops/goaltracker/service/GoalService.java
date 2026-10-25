@@ -5,6 +5,7 @@ import com.devops.goaltracker.repository.GoalRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 
 @Service
@@ -24,6 +25,16 @@ public class GoalService {
             throw new IllegalArgumentException("Goal title is required");
         }
         return goalRepository.save(goal);
+    }
+
+    /**
+     * v2 Feature: Update - Modify goal
+     */
+    public Goal updateGoal(Long id, Goal updateData) {
+        Goal existing = goalRepository.findById(id)
+                .orElseThrow(() -> new NoSuchElementException("Goal with ID " + id + " not found"));
+        existing.updateFrom(updateData);
+        return goalRepository.save(existing);
     }
 
     public List<Goal> getAllGoals() {

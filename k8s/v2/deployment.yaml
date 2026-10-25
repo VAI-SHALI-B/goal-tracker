@@ -29,15 +29,17 @@ spec:
           value: "v2"
         - name: PORT
           value: "5000"
+        - name: SPRING_H2_CONSOLE_SETTINGS_WEB_ALLOW_OTHERS
+          value: "true"
         readinessProbe:
           httpGet:
             path: /health
             port: 5000
-          initialDelaySeconds: 5
+          initialDelaySeconds: 15
           periodSeconds: 5
         livenessProbe:
           httpGet:
             path: /health
             port: 5000
-          initialDelaySeconds: 10
+          initialDelaySeconds: 20
           periodSeconds: 10

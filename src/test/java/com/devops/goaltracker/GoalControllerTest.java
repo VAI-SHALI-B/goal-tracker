@@ -14,6 +14,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import static org.hamcrest.Matchers.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest
@@ -41,7 +42,7 @@ public class GoalControllerTest {
                 .andExpect(jsonPath("$.status", is("healthy")))
                 .andExpect(jsonPath("$.student_id", is("24MIS0378")))
                 .andExpect(jsonPath("$.app", is("Goal Tracker")))
-                .andExpect(jsonPath("$.version", is("v1")));
+                .andExpect(jsonPath("$.version", is("v2")));
     }
 
     @Test
@@ -81,5 +82,59 @@ public class GoalControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(invalidGoal)))
                 .andExpect(status().isBadRequest());
+    }
+
+    // v2 Tests: Update / Modify Goal
+    @Test
+    void testUpdateGoalSuccess() throws Exception {
+        Goal saved = goalRepository.save(new Goal("Initial Goal", "Initial Description", "Personal", "2026-10-31"));
+
+        Goal updateData = new Goal();
+        updateData.setTitle("Updated Goal Title");
+        updateData.setDescription("Updated description with more details");
+        updateData.setCategory("Career");
+        updateData.setTargetDate("2026-12-25");
+        updateData.setStatus("In Progress");
+        updateData.setProgressPct(50);
+
+        mockMvc.perform(put("/api/goals/" + saved.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateData)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message", is("Goal updated successfully")))
+                .andExpect(jsonPath("$.version", is("v2")))
+                .andExpect(jsonPath("$.goal.id", is(saved.getId().intValue())))
+                .andExpect(jsonPath("$.goal.title", is("Updated Goal Title")))
+                .andExpect(jsonPath("$.goal.description", is("Updated description with more details")))
+                .andExpect(jsonPath("$.goal.category", is("Career")))
+                .andExpect(jsonPath("$.goal.targetDate", is("2026-12-25")))
+                .andExpect(jsonPath("$.goal.status", is("In Progress")))
+                .andExpect(jsonPath("$.goal.progressPct", is(50)));
+    }
+
+    @Test
+    void testUpdateGoalNotFound() throws Exception {
+        Goal updateData = new Goal();
+        updateData.setTitle("Does Not Exist");
+
+        mockMvc.perform(put("/api/goals/999999")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateData)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error", containsString("999999 not found")));
+    }
+
+    @Test
+    void testUpdateGoalBlankTitleReturnsBadRequest() throws Exception {
+        Goal saved = goalRepository.save(new Goal("Valid Goal", "Some description", "Health", "2026-12-01"));
+
+        Goal updateData = new Goal();
+        updateData.setTitle("   ");
+
+        mockMvc.perform(put("/api/goals/" + saved.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateData)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error", containsString("cannot be blank")));
     }
 }
