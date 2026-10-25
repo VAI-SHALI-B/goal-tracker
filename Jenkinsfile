@@ -1,9 +1,14 @@
 pipeline {
     agent any
 
+    parameters {
+        choice(name: 'APP_VERSION', choices: ['v3', 'v2', 'v1'], description: 'Select Goal Tracker version to build, test, publish, and deploy')
+    }
+
     environment {
-        APP_VERSION = 'v1'
-        DOCKER_IMAGE = "goal-tracker:${APP_VERSION}"
+        VERSION = "${params.APP_VERSION ?: (env.BRANCH_NAME ?: 'v3')}"
+        DOCKERHUB_USER = 'vaishalibalaji'
+        DOCKER_IMAGE = "${DOCKERHUB_USER}/goal-tracker:${VERSION}"
         DOCKERHUB_CREDENTIALS_ID = 'dockerhub-credentials'
     }
 
@@ -15,7 +20,7 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                echo "Stage 1: Checking out source code for Version ${env.APP_VERSION}..."
+                echo "Stage 1: Checking out source code for Version ${env.VERSION}..."
                 checkout scm
             }
         }
@@ -36,7 +41,7 @@ pipeline {
 
         stage('Docker Build') {
             steps {
-                echo "Stage 4: Building Docker container image for ${env.APP_VERSION}..."
+                echo "Stage 4: Building Docker image ${env.DOCKER_IMAGE}..."
                 bat "docker build -t ${env.DOCKER_IMAGE} ."
             }
         }
@@ -44,31 +49,39 @@ pipeline {
         stage('Docker Hub Push') {
             steps {
                 echo "Stage 5: Publishing container image to Docker Hub repository..."
-                // When Docker Hub credentials are bound in Jenkins:
-                // withCredentials([usernamePassword(credentialsId: env.DOCKERHUB_CREDENTIALS_ID, usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                //     bat 'docker login -u %DOCKER_USER% -p %DOCKER_PASS%'
-                //     bat "docker tag ${env.DOCKER_IMAGE} %DOCKER_USER%/goal-tracker:${env.APP_VERSION}"
-                //     bat "docker push %DOCKER_USER%/goal-tracker:${env.APP_VERSION}"
-                // }
-                echo "Docker image ${env.DOCKER_IMAGE} built and ready for deployment."
+                withCredentials([usernamePassword(credentialsId: env.DOCKERHUB_CREDENTIALS_ID, usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    bat 'docker login -u %DOCKER_USER% -p %DOCKER_PASS%'
+                    bat "docker push ${env.DOCKER_IMAGE}"
+                }
             }
         }
 
         stage('Kubernetes Deploy') {
             steps {
-                echo "Stage 6: Deploying ${env.APP_VERSION} to Kubernetes Cluster (NodePort 30081)..."
-                bat "kubectl apply -f k8s/${env.APP_VERSION}/"
-                bat "kubectl rollout status deployment/goal-tracker-${env.APP_VERSION}"
+                echo "Stage 6: Deploying app-${env.VERSION}-deployment to Kubernetes..."
+                bat "kubectl apply -f k8s/${env.VERSION}/"
+                bat "kubectl rollout status deployment/app-${env.VERSION}-deployment --timeout=60s"
+            }
+        }
+
+        stage('Verify Health') {
+            steps {
+                echo "Stage 7: Verifying application health probe..."
+                script {
+                    def targetPort = (env.VERSION == 'v1') ? '30081' : ((env.VERSION == 'v2') ? '30082' : '30083')
+                    echo "Probing http://localhost:${targetPort}/health..."
+                    bat "curl.exe -s http://localhost:${targetPort}/health"
+                }
             }
         }
     }
 
     post {
         success {
-            echo "Pipeline completed successfully for Version ${env.APP_VERSION}!"
+            echo "Pipeline completed successfully for Version ${env.VERSION}!"
         }
         failure {
-            echo "Pipeline execution failed. Review Maven test outputs and console logs."
+            echo "Pipeline execution failed. Review build logs and test results."
         }
     }
 }
