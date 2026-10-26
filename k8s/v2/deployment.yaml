@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: goal-tracker-v2
+  name: app-v2-deployment
   labels:
     app: goal-tracker
     version: v2
@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
       - name: goal-tracker
-        image: goal-tracker:v2
+        image: vaishalibalaji/goal-tracker:v2
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 5000

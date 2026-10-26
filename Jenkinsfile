@@ -2,8 +2,9 @@ pipeline {
     agent any
 
     environment {
-        APP_VERSION = 'v1'
-        DOCKER_IMAGE = "goal-tracker:${APP_VERSION}"
+        APP_VERSION = 'v2'
+        DOCKERHUB_USER = 'vaishalibalaji'
+        DOCKER_IMAGE = "${DOCKERHUB_USER}/goal-tracker:${APP_VERSION}"
         DOCKERHUB_CREDENTIALS_ID = 'dockerhub-credentials'
     }
 
@@ -36,7 +37,7 @@ pipeline {
 
         stage('Docker Build') {
             steps {
-                echo "Stage 4: Building Docker container image for ${env.APP_VERSION}..."
+                echo "Stage 4: Building Docker container image ${env.DOCKER_IMAGE}..."
                 bat "docker build -t ${env.DOCKER_IMAGE} ."
             }
         }
@@ -44,21 +45,25 @@ pipeline {
         stage('Docker Hub Push') {
             steps {
                 echo "Stage 5: Publishing container image to Docker Hub repository..."
-                // When Docker Hub credentials are bound in Jenkins:
-                // withCredentials([usernamePassword(credentialsId: env.DOCKERHUB_CREDENTIALS_ID, usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                //     bat 'docker login -u %DOCKER_USER% -p %DOCKER_PASS%'
-                //     bat "docker tag ${env.DOCKER_IMAGE} %DOCKER_USER%/goal-tracker:${env.APP_VERSION}"
-                //     bat "docker push %DOCKER_USER%/goal-tracker:${env.APP_VERSION}"
-                // }
-                echo "Docker image ${env.DOCKER_IMAGE} built and ready for deployment."
+                withCredentials([usernamePassword(credentialsId: env.DOCKERHUB_CREDENTIALS_ID, usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    bat 'docker login -u %DOCKER_USER% -p %DOCKER_PASS%'
+                    bat "docker push ${env.DOCKER_IMAGE}"
+                }
             }
         }
 
         stage('Kubernetes Deploy') {
             steps {
-                echo "Stage 6: Deploying ${env.APP_VERSION} to Kubernetes Cluster (NodePort 30081)..."
-                bat "kubectl apply -f k8s/${env.APP_VERSION}/"
-                bat "kubectl rollout status deployment/goal-tracker-${env.APP_VERSION}"
+                echo "Stage 6: Deploying app-v2-deployment to Kubernetes..."
+                bat "kubectl apply -f k8s/v2/"
+                bat "kubectl rollout status deployment/app-v2-deployment --timeout=60s"
+            }
+        }
+
+        stage('Verify Health') {
+            steps {
+                echo "Stage 7: Verifying application health probe..."
+                bat "curl.exe -s http://localhost:30082/health"
             }
         }
     }
@@ -68,7 +73,7 @@ pipeline {
             echo "Pipeline completed successfully for Version ${env.APP_VERSION}!"
         }
         failure {
-            echo "Pipeline execution failed. Review Maven test outputs and console logs."
+            echo "Pipeline execution failed. Review build logs and test results."
         }
     }
 }
